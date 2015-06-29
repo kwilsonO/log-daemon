@@ -8,14 +8,17 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 var opts struct {
-	Path       flags.Filename `short:"p" long:"path-to-logs" description:"Path to the folder containing the logs" required:"true"`
-	Topic      string         `short:"t" long:"topic" description:"The Kafka topic to store the logs under" required:"true"`
-	KeyPrefix  string         `short:"k" long:"key-prefix" description:"A prefix added in front of each filename-key in kafka." required:"false"`
-	ClearTopic bool           `default:"false" short:"c" long:"clear-topic" description:"A flag that when set will cause the passed topic to be cleared before any logs are stored into that topic" required:"false"`
-	Recursive  bool           `default:"false" short:"r" long:"recurse" description:"If daemon encounters a folder, restart the search inside that folder and so on" required:"false"`
+	Path          flags.Filename `short:"f" long:"path-to-logs" description:"Path to the folder containing the logs" required:"true"`
+	Topic         string         `short:"t" long:"topic" description:"The Kafka topic to store the logs under" required:"true"`
+	ProcessorHost string         `default:"http://localhost" short:"h" long:"host" description:"The host name of the server where the log processor is running, Must not end in a slash"`
+	ProcessorPort string         `default:"8080" short:"p" long:"port" description:"The port that the log processor is listening on"`
+	Recursive     bool           `default:"false" short:"r" long:"recurse" description:"If daemon encounters a folder, restart the search inside that folder and so on" required:"false"`
+	KeyPrefix     string         `short:"k" long:"key-prefix" description:"A prefix added in front of each filename-key in kafka." required:"false"`
+	ClearTopic    bool           `default:"false" short:"c" long:"clear-topic" description:"A flag that when set will cause the passed topic to be cleared before any logs are stored into that topic" required:"false"`
 }
 
 type KafkaMsg struct {
@@ -25,6 +28,8 @@ type KafkaMsg struct {
 }
 
 var KEY_PREFIX = ""
+var PROCESSOR_HOST = "http://localhost"
+var PROCESSOR_PORT = "8080"
 var FolderTopic = "RouterLogs"
 
 func sendMsg(msg KafkaMsg) {
@@ -35,8 +40,8 @@ func sendMsg(msg KafkaMsg) {
 		return
 	}
 
-	req, err := http.NewRequest("POST", "http://localhost:8080/", bytes.NewBuffer(b))
-	//req, err := http.NewRequest("GET", "http://example.com/?data", nil)
+	var reqDest = PROCESSOR_HOST + ":" + PROCESSOR_PORT + "/"
+	req, err := http.NewRequest("POST", reqDest, bytes.NewBuffer(b))
 	if err != nil {
 		fmt.Printf("Failed creating request: %s\n\n", err)
 	}
@@ -102,6 +107,19 @@ func main() {
 
 	if opts.KeyPrefix != "" {
 		KEY_PREFIX = opts.KeyPrefix + "-"
+	}
+
+	if opts.ProcessorHost != "" {
+		if !strings.HasSuffix(opts.ProcessorHost, "/") {
+			PROCESSOR_HOST = opts.ProcessorHost
+		} else {
+			fmt.Println("Cannot have a hostname that ends with a slash, try again.")
+			os.Exit(1)
+		}
+	}
+
+	if opts.ProcessorPort != "" {
+		PROCESSOR_PORT = opts.ProcessorPort
 	}
 
 	err = filepath.Walk(string(opts.Path), visit)
