@@ -3,12 +3,20 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"flag"
 	"fmt"
+	flags "github.com/jessevdk/go-flags"
 	"net/http"
 	"os"
 	"path/filepath"
 )
+
+var opts struct {
+	Path       flags.Filename `short:"p" long:"path-to-logs" description:"Path to the folder containing the logs" required:"true"`
+	Topic      string         `short:"t" long:"topic" description:"The Kafka topic to store the logs under" required:"true"`
+	KeyPrefix  string         `short:"k" long:"key-prefix" description:"A prefix added in front of each filename-key in kafka." required:"false"`
+	ClearTopic bool           `default:"false" short:"c" long:"clear-topic" description:"A flag that when set will cause the passed topic to be cleared before any logs are stored into that topic" required:"false"`
+	Recursive  bool           `default:"false" short:"r" long:"recurse" description:"If daemon encounters a folder, restart the search inside that folder and so on" required:"false"`
+}
 
 type KafkaMsg struct {
 	Topic string
@@ -16,20 +24,21 @@ type KafkaMsg struct {
 	Value string
 }
 
+var KEY_PREFIX = ""
 var FolderTopic = "RouterLogs"
 
 func sendMsg(msg KafkaMsg) {
 
 	b, err := json.Marshal(msg)
 	if err != nil {
-		fmt.Println("Could not marshal json")
+		fmt.Println("Could not marshal json\n")
 		return
 	}
 
 	req, err := http.NewRequest("POST", "http://localhost:8080/", bytes.NewBuffer(b))
 	//req, err := http.NewRequest("GET", "http://example.com/?data", nil)
 	if err != nil {
-		fmt.Printf("FAILED !!! %s", err)
+		fmt.Printf("Failed creating request: %s\n\n", err)
 	}
 
 	client := &http.Client{}
@@ -37,16 +46,23 @@ func sendMsg(msg KafkaMsg) {
 	_, err = client.Do(req)
 
 	if err != nil {
-		fmt.Printf("FAILED EVEN MORE !!! %s", err)
+		fmt.Printf("Failed making request: %s\n", err)
 
 	}
 
 }
 func visit(path string, f os.FileInfo, err error) error {
-	fmt.Printf("Visited: %s\n", path)
+
+	var fMod os.FileMode
+	fMod = f.Mode()
+	if fMod.IsDir() {
+		fmt.Printf("Entering Folder: %s\n", f.Name())
+		return nil
+	}
+	fmt.Printf("Saving log: %s\n", path)
 	file, err := os.Open(path)
 	if err != nil {
-		fmt.Printf("trouble opening file: %s", err)
+		fmt.Printf("trouble opening file: %s\n", err)
 		return nil
 	}
 
@@ -54,12 +70,12 @@ func visit(path string, f os.FileInfo, err error) error {
 	n, err := file.Read(b)
 
 	if int64(n) != f.Size() {
-		fmt.Printf("Error reading entire file: %s", err)
+		fmt.Printf("Error reading entire file: %s\n", err)
 	}
-
+	var finalkey = KEY_PREFIX + f.Name()
 	var kmsg KafkaMsg = KafkaMsg{
 		Topic: FolderTopic,
-		Key:   f.Name(),
+		Key:   finalkey,
 		Value: string(b),
 	}
 
@@ -68,13 +84,28 @@ func visit(path string, f os.FileInfo, err error) error {
 	return nil
 }
 
+func clearTopic(topicName string) {
+	//todo delete all messages of certain typ
+	fmt.Println("Clearing a topic is not yet supported at this time.\n")
+}
+
 func main() {
-	flag.Parse()
-	root := flag.Arg(0)
-	topicarg := flag.Arg(1)
-	if topicarg != "" {
-		FolderTopic = topicarg
+
+	_, err := flags.ParseArgs(&opts, os.Args)
+	if err != nil {
+		os.Exit(1)
 	}
-	err := filepath.Walk(root, visit)
-	fmt.Printf("filepath.Walk() returned %v\n", err)
+
+	if opts.ClearTopic {
+		clearTopic(opts.Topic)
+	}
+
+	if opts.KeyPrefix != "" {
+		KEY_PREFIX = opts.KeyPrefix + "-"
+	}
+
+	err = filepath.Walk(string(opts.Path), visit)
+	if err != nil {
+		fmt.Printf("Error saving log files: %s\n", err)
+	}
 }
