@@ -1,5 +1,7 @@
 #Log-Daemon
 
+###To be used with: https://github.com/kwilsonO/log-collector and https://github.com/kwilsonO/cassandra-consumer
+
 ##Example Usage
 
 Store all logs in only samples/deeplog under topic TestLog, via the webservice running on http://localhost:8080/
