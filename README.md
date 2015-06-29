@@ -1,5 +1,13 @@
 #Log-Daemon
 
+##Example Usage
+
+	./log-daemon -f samples/deeplog -t TestLog -s "http://localhost" -p "8080       //Store all logs in samples/deeplog under topic TestLog, via the webservice running on localhost:8080"
+
+	./log-daemon -f /etc/logs/ -t RouterLogs -s "http://localhost" -p "8080" -r true -k "extrouter1" -c false       //Store all logs in /etc/logs/ and recursively beneath to topic RouterLogs, and prefix each filename-key with extrouter1
+
+	./log-daemon -f /etc/logs/ -t RouterLogs -s "http://localhost" -p "8080" -r true -k "extrouter2" -c true 
+
 * Usage:
   * log-daemon [OPTIONS]
 

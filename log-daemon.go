@@ -14,7 +14,7 @@ import (
 var opts struct {
 	Path          flags.Filename `short:"f" long:"path-to-logs" description:"Path to the folder containing the logs" required:"true"`
 	Topic         string         `short:"t" long:"topic" description:"The Kafka topic to store the logs under" required:"true"`
-	ProcessorHost string         `default:"http://localhost" short:"h" long:"host" description:"The host name of the server where the log processor is running, Must not end in a slash"`
+	ProcessorHost string         `default:"http://localhost" short:"s" long:"host" description:"The host name of the server where the log processor is running, Must not end in a slash"`
 	ProcessorPort string         `default:"8080" short:"p" long:"port" description:"The port that the log processor is listening on"`
 	Recursive     bool           `default:"false" short:"r" long:"recurse" description:"If daemon encounters a folder, restart the search inside that folder and so on" required:"false"`
 	KeyPrefix     string         `short:"k" long:"key-prefix" description:"A prefix added in front of each filename-key in kafka." required:"false"`
